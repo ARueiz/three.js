@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<link rel="stylesheet" type="text/css" href="./mystyle.css">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!-- three.js library -->
+<script src='ar.js/three.js/examples/vendor/three.js/build/three.min.js'></script>
+<script src="ar.js/three.js/examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<!-- ar.js -->
+<script src="ar.js/three.js/build/ar.js"></script>
+
+</head>
+
+<body> 
+<div id="info">Agent (Seek, Arrival, Collision)<br>
+<p id="message"></p>
+</div>
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.6/dat.gui.min.js"></script>
+
+<!--建立箭頭-->
+<!--<script src="./agent0.js"></script>-->
+<!--建立障礙物-->
+<!--<script src="./obstacle.js"></script>-->
+<!--建立目標物-->
+<!--<script src="./target.js"></script>-->
+
+<!-- must be before main.js -->
+<!--<script src="./scene.js"></script>-->
+<!--<script src="./threemain.js"></script>-->
+
+<script >
+    var arToolkitSource, arToolkitContext;
+    var markerRoot, cubeSpin;
+    var agentblue;
+    var agentred;
+    var car;
+    var theta = 0;
+
+    init();
+    animate();
+
+    function onResize(){
+        arToolkitSource.onResize()	
+        arToolkitSource.copySizeTo(renderer.domElement)	
+        if( arToolkitContext.arController !== null ){
+            arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)	
+        }	
+    }
+
+    function init() {
+
+        // init renderer
+        renderer	= new THREE.WebGLRenderer({
+            // antialias	: true,
+            alpha: true
+        });
+        renderer.setClearColor(new THREE.Color('white'), 0)
+        // renderer.setPixelRatio( 1/2 );
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        renderer.domElement.style.position = 'absolute'
+        renderer.domElement.style.top = '0px'
+        renderer.domElement.style.left = '0px'
+        document.body.appendChild( renderer.domElement );
+
+        // init scene and camera
+        scene	= new THREE.Scene();
+        
+            
+        //////////////////////////////////////////////////////////////////////////////////
+        //		Initialize a basic camera
+        //////////////////////////////////////////////////////////////////////////////////
+
+        // Create a camera
+        camera = new THREE.Camera();
+        scene.add(camera);
+
+        ////////////////////////////////////////////////////////////////////////////////
+        //          handle arToolkitSource
+        ////////////////////////////////////////////////////////////////////////////////
+
+        arToolkitSource = new THREEx.ArToolkitSource({
+            // to read from the webcam 
+            sourceType : 'webcam',
+
+            // to read from an image
+            // sourceType : 'image',
+            // sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/images/img.jpg',		
+
+            // to read from a video
+            // sourceType : 'video',
+            // sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/videos/headtracking.mp4',		
+        })
+
+        arToolkitSource.init(function onReady(){
+            onResize()
+        })
+        
+        // handle resize
+        window.addEventListener('resize', function(){
+            onResize()
+        })
+        ////////////////////////////////////////////////////////////////////////////////
+        //          initialize arToolkitContext
+        ////////////////////////////////////////////////////////////////////////////////
+        
+
+        // create atToolkitContext
+        arToolkitContext = new THREEx.ArToolkitContext({
+            cameraParametersUrl: 'ar.js/data/data/camera_para.dat',
+            detectionMode: 'mono',
+            maxDetectionRate: 30,
+            canvasWidth: 80*3,
+            canvasHeight: 60*3,
+        })
+        // initialize it
+        arToolkitContext.init(function onCompleted(){
+            // copy projection matrix to camera
+            camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+        })
+        
+        
+        ////////////////////////////////////////////////////////////////////////////////
+        //          Create a ArMarkerControls
+        ////////////////////////////////////////////////////////////////////////////////
+        
+        markerRoot = new THREE.Group
+        scene.add(markerRoot)
+        var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+            type : 'pattern',
+            patternUrl : 'ar.js//data/data/patt.hiro'
+        })
+
+
+        // add a cubeGeometry
+        
+        //let size = 0.01; // halfsize of agent
+        //agent = new Agent(new THREE.Vector3(-400 + 400 * Math.random(), 0, -400 + 400 * Math.random()), mesh);
+        //agentblue = new Agent(new THREE.Vector3(-1 + 2 * Math.random(), 0, -1 + 2 * Math.random()), size, "BLUE", 0x003d73);
+        //agentred = new Agent(new THREE.Vector3(1 + -2 * Math.random(), 0, 1 + -2 * Math.random()), size, "RED", 0x8b281f);
+
+        /// add gridhelper
+
+        let gridXZ = new THREE.GridHelper(2, 40, 0xffc914, 0xd7d9ce);
+        markerRoot.add (gridXZ);
+
+        let geometry = new THREE.Geometry();
+        let material = new THREE.MeshBasicMaterial({color:0x003d73, wireframe:true});
+        geometry.vertices.push(
+            new THREE.Vector3(0.15,0,0),
+            new THREE.Vector3(0,0.05,0),
+            new THREE.Vector3(0,0,-0.05),
+            new THREE.Vector3(0,0,0.05)
+        );
+        geometry.faces.push(
+            new THREE.Face3(0,1,3),
+            new THREE.Face3(2,1,0),
+            new THREE.Face3(1,2,3),
+            new THREE.Face3(2,0,3),
+        );
+        geometry.computeFaceNormals();
+
+        car = new THREE.Mesh(geometry, material);
+        car.position.set(0,0,0); 
+        markerRoot.add(car);
+
+        geometry = new THREE.CylinderGeometry(0.15,0.15,0.05,20);
+        material = new THREE.MeshBasicMaterial({color: 0x669bbc,transparent:true, opacity:0.9});
+
+        var obs1 = new THREE.Mesh(geometry, material);
+        var obs2 = new THREE.Mesh(geometry, material);
+        var obs3 = new THREE.Mesh(geometry, material);
+
+        obs1.position.set(0,0,0);
+        obs2.position.set(1,0,0);
+        obs3.position.set(0,0,-1);
+
+        markerRoot.add(obs1);
+        markerRoot.add(obs2);
+        markerRoot.add(obs3);
+        //////////////////////////////////////////////////////////////////////////////////
+        //		render the whole thing on the page
+        //////////////////////////////////////////////////////////////////////////////////
+        stats = new Stats();
+        document.body.appendChild( stats.dom );
+
+    }
+
+
+    function animate() {
+        
+        requestAnimationFrame (animate)
+        if( arToolkitSource.ready === false )	return
+
+        theta += 0.03 ; //theta: radian 
+        car.rotation.y = Math.PI/2 + theta;
+
+        //move the car
+        car.position.set(0.6*Math.cos(theta),0,-0.6*Math.sin(theta));
+
+        arToolkitContext.update( arToolkitSource.domElement )
+
+        renderer.render (scene, camera);
+        stats.update();
+        
+    }
+
+</script>
+</body>
+
+</html>

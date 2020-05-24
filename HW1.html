@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+    <head>        
+        <style>
+            #info {
+                position: absolute;
+                top: 0px;
+                width: 100%;
+                padding: 10px;
+                text-align: center;
+            }
+            #toggle{
+                width :100px;
+                height :30px;
+                font-weight: 200;
+            }
+        </style>
+    </head>
+    <body>       
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+        <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <div id = "info">
+            <button id = "toggle" onclick="javascript:toggleCamera();" >Toggle</button>
+        </div>
+        <!--init 初始值   animate 動畫(使畫面根據程式變化)-->
+
+        <script>
+        var renderer, scene, camera;
+        var car;
+        var cylinderA, cylinderB, cylinderright, cylinderleft;
+        var theta = 0;
+        var controls ;
+        var ThirdPersonMode = false;
+        var turn = true; 
+        
+        function toggleCamera(){
+            ThirdPersonMode = !ThirdPersonMode;
+            if(ThirdPersonMode == false){
+                controls.enabled = true;
+                camera.position.set(0,60,220);
+                camera.lookAt(new THREE.Vector3(0,0,0));
+            }else{
+                controls.enabled = false;
+            }
+        }
+
+        init();
+        animate();
+
+        function init(){
+        //setup scene renderer camera 
+        
+        //create a renderer
+        renderer = new THREE.WebGLRenderer();
+        width = window.innerWidth;
+        height = window.innerHeight;
+        renderer.setSize(width,height);
+        document.body.appendChild(renderer.domElement);
+        renderer.setClearColor(0x888888);
+        
+        //create a scene
+        scene = new THREE.Scene();
+        
+        //create camera
+        camera = new THREE.PerspectiveCamera(75,width/height,1,1000);
+        controls = new THREE.OrbitControls( camera, renderer.domElement );
+                         //(X, Y, Z)
+        camera.position.set(0,60,220);
+        //setup object in the scene
+        var gridHelper = new THREE.GridHelper( 240, 24 ,0Xe6d62e,0x000000);
+        scene.add( gridHelper );
+
+        window.addEventListener('resize', onWindowResize, false);
+
+        //car position      0:(30,0,0) 1:(0,15,0) 2:(0,0,-15) 3:(0,0,15)
+        //car face (CCW)    (0,1,3) (2,1,0) (1,2,3) (2,0,3)
+        //create car
+        geometry = new THREE.Geometry();
+        geometry.vertices.push(
+            new THREE.Vector3(30,0,0),
+            new THREE.Vector3(0,15,0),
+            new THREE.Vector3(0,0,-15),
+            new THREE.Vector3(0,0,15)
+        );
+        geometry.faces.push(
+            new THREE.Face3(0,1,3),
+            new THREE.Face3(2,1,0),
+            new THREE.Face3(1,2,3),
+            new THREE.Face3(2,0,3),
+        );
+        geometry.computeFaceNormals();
+        //eometry.computeVertexNormals();
+
+        car = new THREE.Mesh(geometry, new THREE.MeshNormalMaterial());
+        scene.add(car);
+
+        //create two cylinder
+        cylinderA = new THREE.CylinderGeometry(10,20,30,20);
+        cylinderB = new THREE.CylinderGeometry(10,10,100,20);
+        cylinderright = new THREE.Mesh(cylinderA, new THREE.MeshNormalMaterial());
+        cylinderleft  = new THREE.Mesh(cylinderB, new THREE.MeshLambertMaterial());
+        scene.add(cylinderright);
+        scene.add(cylinderleft);
+        
+        cylinderright.position.set(100,0,100);
+        cylinderleft.position.set(0,0,0);
+        }
+
+        //resize function
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate(){
+            renderer.render(scene,camera);
+            
+            theta += 0.03 ; //theta: radian 
+            car.rotation.y = Math.PI/2 + theta;
+
+            //move the car
+            car.position.set(60*Math.cos(theta),0,-60*Math.sin(theta));
+
+            //(third-person-vision) move the camera behide car
+            if(ThirdPersonMode){
+                var d = Math.PI/4; 
+                var h = 25;
+                camera.position.set(60*Math.cos(theta - d), h, -60*Math.sin(theta - d));
+                camera.lookAt(car.position);
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        </script>
+        
+    </body>
+</html>

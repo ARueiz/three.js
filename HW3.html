@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet" >        
+        <style>
+            #info {
+                position: absolute;
+                top: 15px;
+                width: 100%;
+                padding: 10px;
+                text-align: left;
+            }
+
+            .slidecontainer{
+                text-align:left;
+            }
+            .slider {
+                -webkit-appearance: none;
+                height: 25px;
+                outline: none;
+                opacity: 0.7;
+                -webkit-transition: .2s;
+                transition: opacity .2s;
+            }
+
+            .slider:hover {
+                opacity: 1;
+            }
+
+            .slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 25px;
+                height: 25px;
+                background: #2670bb;
+                cursor: pointer;
+            }
+            #gui {
+                position: absolute;
+                top: 20px;
+                left: 20px;
+                height: 350px;
+            }
+            body {
+            overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>       
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+        <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+
+        <!--init 初始值   animate 動畫(使畫面根據程式變化)-->
+        <div id = "info">
+            <div class="slidecontainer">
+                <strong style="font-size: 26px;font-family: 微軟正黑體;">Music</strong>
+				<input type="range" min="0" max="10" value="5" class="slider" id="MusicVolume">
+            </div>
+            <p></p>
+            <div>
+                <button class="btn btn-dark" id = "toggle" >Gyro</button>
+            </div>
+            
+        </div>
+        <audio id="soundtrack" autoplay loop style="display:none">
+            <source src="source/Music/march.mp3" type='audio/mp3'>
+        </audio>
+        <script>
+        var camera, cameragyro, scene, renderer;
+        var useGyro = false;
+        var k = 10;
+        var opc = 0.5;
+        var head, leftarm, rightarm, torso, leftleg, rightleg;
+        var theta = 0;
+        var controls;
+        var controlsgyro;
+        var mine;
+
+        ////////////////////
+        var theta1 = 0, //左手
+            theta2 = 0, //右手
+            theta3 = 0, //左腳
+            theta4 = 0; //右腳
+        var pose1 = {
+            theta1: 0,    
+            theta2: 0,
+            theta3: -1,
+            theta4: 0.3
+        }
+        var pose2 = {
+            theta1: -1.2,    
+            theta2: 0,
+            theta3: -0.2,
+            theta4: -0.5
+        }
+        var pose3 = {
+            theta1: -1.6,    
+            theta2: 0,
+            theta3: 0.3,
+            theta4: -1
+        }
+        var pose4 = {
+            theta1: -0.7,    
+            theta2: 0,
+            theta3: -0.3,
+            theta4: -0.3
+        }
+        var pose5 = {
+            theta1: -0.3,    
+            theta2: 0,
+            theta3: -0.6,
+            theta4: 0
+        }
+        var keys = [
+            [0, pose1],
+            [0.2, pose2],
+            [0.4, pose3],
+            [0.6, pose4],
+            [0.8, pose5],
+            [1, pose1]
+        ];
+        var T = 120/107;
+        var clock = new THREE.Clock();
+        var ts = clock.getElapsedTime();  // start time
+        var intKey = [];
+
+        ///////////////
+        init();
+        animate();
+
+        function init() {
+            
+        scene = new THREE.Scene();
+
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x888888);
+        document.body.appendChild(renderer.domElement);
+
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+        camera.position.set(0,100,400);
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        cameragyro = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+        cameragyro.position.set(0,100,400);
+        controlsgyro = new THREE.OrbitControls(cameragyro, renderer.domElement);
+
+        window.addEventListener('resize', onWindowResize, false);
+        ////////////////////////////////////////////////////////////////
+        let planeMat = new THREE.TextureLoader().load('https://i.imgur.com/HFaq6jB.png');
+        planeMat.wrapS = THREE.RepeatWrapping;
+        planeMat.wrapT = THREE.RepeatWrapping;
+        let plane = new THREE.Mesh(new THREE.PlaneGeometry(500, 500, 1, 1),
+            new THREE.MeshLambertMaterial({
+                side: THREE.DoubleSide, // 雙面材質
+                map: planeMat,
+                color: 0xF0F0F0,//調整亮度到跟skybox相近
+            }));
+        plane.rotation.x -= Math.PI / 2;
+        scene.add(plane);
+
+        let ambientLight = new THREE.AmbientLight(0xffffff);
+        scene.add(ambientLight);
+
+        //skin mapping
+        let textureLoder = new THREE.TextureLoader()
+        //head
+        var headfrontMap = new THREE.TextureLoader().load('https://i.imgur.com/pR3P4vu.png')
+        var headbackMap  = new THREE.TextureLoader().load('https://i.imgur.com/vEgA55v.png')
+        var headbotMap   = new THREE.TextureLoader().load('https://i.imgur.com/PxMsBK4.png')
+        var headtopMap   = new THREE.TextureLoader().load('https://i.imgur.com/iZOPeKc.png')
+        var headrightMap = new THREE.TextureLoader().load('https://i.imgur.com/zZWZoGQ.png')
+        var headleftMap  = new THREE.TextureLoader().load('https://i.imgur.com/rQyKdCx.png')
+        //torso
+        var torsofrontMap = new THREE.TextureLoader().load('https://i.imgur.com/uSCaecQ.png')
+        var torsobackMap  = new THREE.TextureLoader().load('https://i.imgur.com/lHak7S2.png')
+        var torsosideMap  = new THREE.TextureLoader().load('https://i.imgur.com/ZTgMM1B.png')
+        var torsotopMap   = new THREE.TextureLoader().load('https://i.imgur.com/2RSaJyV.png')
+        var torsobotMap   = new THREE.TextureLoader().load('https://i.imgur.com/6BYi02Y.png')
+        //leftarm & rightarm
+        var armbotMap      = new THREE.TextureLoader().load('https://i.imgur.com/7jbvVeS.png')
+        var armsideMap     = new THREE.TextureLoader().load('https://i.imgur.com/majujgE.png?1')
+        var armside2Map    = new THREE.TextureLoader().load('https://i.imgur.com/majujgE.png?3')
+        var leftarmtopMap  = new THREE.TextureLoader().load('https://i.imgur.com/KszMuy6.png?1')
+        var rightarmtopMap = new THREE.TextureLoader().load('https://i.imgur.com/nCbFwXx.png?1')
+        //leftleg & rightleg
+        var leftlegfrontMap  = new THREE.TextureLoader().load('https://i.imgur.com/U7vuBBv.png?1')
+        var rightlegfrontMap = new THREE.TextureLoader().load('https://i.imgur.com/lWEdk43.png?1')
+        var legbotMap        = new THREE.TextureLoader().load('https://i.imgur.com/euKaGAH.png')
+        var legsideMap       = new THREE.TextureLoader().load('https://i.imgur.com/JWpspLF.png?1')
+        var legside2Map      = new THREE.TextureLoader().load('https://i.imgur.com/JWpspLF.png?2')
+        var legtopMap        = new THREE.TextureLoader().load('https://i.imgur.com/j0TAAIh.png')        
+
+        //頭部材質
+        var headMaterials = []
+        for (var i = 0; i < 6; i++) {
+            var map
+            if (i == 0) map = headbackMap
+            if (i == 1) map = headrightMap
+            if (i == 2) map = headtopMap
+            if (i == 3) map = headbotMap
+            if (i == 4) map = headfrontMap
+            if (i == 5) map = headbackMap
+
+            headMaterials.push(new THREE.MeshBasicMaterial({ map: map }))
+        }
+        //身體材質
+        var torsoMaterials = []
+        for (i = 0; i < 6; i++) {
+            var map
+            if (i == 4) map = torsofrontMap
+            else if (i == 3) map = torsobotMap
+            else if (i == 2) map = torsotopMap
+            else if (i == 5) map = torsobackMap
+            else map = torsosideMap
+
+            torsoMaterials.push(new THREE.MeshBasicMaterial({ map: map }))
+        }
+        //左手材質
+        var leftarmMaterials = []
+        for (i = 0; i < 6; i++) {
+            var map
+
+            if (i == 0) map = armbotMap
+            if (i == 1) map = leftarmtopMap
+            if (i == 2) map = armside2Map
+            if (i == 3) map = armside2Map
+            if (i == 4) map = armside2Map
+            if (i == 5) map = armsideMap
+
+            leftarmMaterials.push(new THREE.MeshBasicMaterial({ map: map }))
+        }
+        //右手材質
+        var rightarmMaterials = []
+        for (i = 0; i < 6; i++) {
+            var map
+
+            if (i == 0) map = armbotMap
+            if (i == 1) map = rightarmtopMap
+            if (i == 2) map = armside2Map
+            if (i == 3) map = armside2Map
+            if (i == 4) map = armside2Map
+            if (i == 5) map = armsideMap
+
+            rightarmMaterials.push(new THREE.MeshBasicMaterial({ map: map }))
+        }
+        //左腳材質
+        var leftlegMaterials = []
+        for (i = 0; i < 6; i++) {
+            var map
+
+            if (i == 0) map = legbotMap
+            if (i == 1) map = legtopMap
+            if (i == 2) map = legsideMap
+            if (i == 3) map = legsideMap
+            if (i == 4) map = leftlegfrontMap
+            if (i == 5) map = legside2Map
+
+            leftlegMaterials.push(new THREE.MeshBasicMaterial({ map: map }))
+        }
+        //右腳材質
+        var rightlegMaterials = []
+        for (i = 0; i < 6; i++) {
+            var map
+
+            if (i == 0) map = legbotMap
+            if (i == 1) map = legtopMap
+            if (i == 2) map = legsideMap
+            if (i == 3) map = legsideMap
+            if (i == 4) map = leftlegfrontMap
+            if (i == 5) map = legside2Map
+
+            rightlegMaterials.push(new THREE.MeshBasicMaterial({ map: map }))
+        }
+
+        function makeleftArm() {
+            var group = new THREE.Group();
+            var body = new THREE.Mesh (new THREE.BoxGeometry(3.82*k, 1.24*k, 1.24*k), leftarmMaterials);
+            
+            group.add (body);
+            body.position.x = 3.82*k/2;
+            //group.add (new THREE.AxesHelper (k));
+                return group;
+        }
+
+        function makerightArm() {
+            var group = new THREE.Group();
+            var body = new THREE.Mesh (new THREE.BoxGeometry(3.82*k, 1.24*k, 1.24*k), rightarmMaterials);
+            
+            group.add (body);
+            body.position.x = 3.82*k/2;
+            //group.add (new THREE.AxesHelper (k));
+                return group;
+        }
+
+        function makeleftLeg() {
+            var group = new THREE.Group();
+            var body = new THREE.Mesh (new THREE.BoxGeometry(4.09*k, 1.26*k, 1.26*k), leftlegMaterials);
+            
+            group.add (body);
+            body.position.x = 4.09*k/2;
+            //group.add (new THREE.AxesHelper (k));
+                return group;
+        }
+
+        function makerightLeg() {
+            var group = new THREE.Group();
+            var body = new THREE.Mesh (new THREE.BoxGeometry(4.09*k, 1.26*k, 1.26*k), rightlegMaterials);
+            
+            group.add (body);
+            body.position.x = 4.09*k/2;
+            //group.add (new THREE.AxesHelper (k));
+                return group;
+        }
+
+        function makeHead() {
+            var headGroup = new THREE.Group();
+            var headBody = new THREE.Mesh (new THREE.BoxGeometry(2.52*k, 2.52*k, 2.52*k), headMaterials);
+            
+            headGroup.add (headBody);
+            headBody.position.y = 2.52*k/2;
+            //headGroup.add (new THREE.AxesHelper (k));
+                return headGroup;
+        }
+
+        function makeTorso () {
+            var group = new THREE.Group();
+            var body = new THREE.Mesh (new THREE.BoxGeometry(2.52*k, 3.48*k, 1.26*k), torsoMaterials);
+            
+            group.add (body);
+            body.position.y = 3.48*k/2;
+            //group.add (new THREE.AxesHelper (2*k));
+            return group;
+        }
+
+        //create character
+        mine = new THREE.Group();
+        head = makeHead();
+        torso = makeTorso();
+        mine.add (head, torso);
+        head.position.y = 7.57*k;
+        torso.position.y = 4.09*k;
+
+        //create leftArm
+        leftarm = makeleftArm();
+        mine.add (leftarm);
+        leftarm.position.set (1.26*k+0.62*k, 7.57*k, 0);
+        scene.add (mine);
+        //create rightArm
+        rightarm = makerightArm();
+        mine.add (rightarm);
+        rightarm.position.set (-1.26*k-0.62*k, 7.57*k, 0);
+        scene.add (mine);
+        //create leftLeg
+        leftleg = makeleftLeg();
+        leftleg.position.set (0.63*k, 4.09*k, 0);
+        mine.add (leftleg);
+        //create rightLeg
+        rightleg = makerightLeg();
+        rightleg.position.set (-0.63*k, 4.09*k, 0);
+        mine.add (rightleg);
+
+        leftarm.rotation.z  = -Math.PI/2;
+        rightarm.rotation.z = -Math.PI/2;
+        leftleg.rotation.z  = -Math.PI/2;
+        rightleg.rotation.z = -Math.PI/2;
+        
+        leftarm.rotation.order  = 'ZYX';
+        rightarm.rotation.order = 'ZYX';
+        leftleg.rotation.order  = 'ZYX';
+        rightleg.rotation.order = 'ZYX';
+
+        var group = new THREE.Group();
+        var mat = new THREE.MeshNormalMaterial({transparent:true, opacity:opc});
+        var body = new THREE.Mesh (new THREE.BoxGeometry(2.52*k, 3.48*k, 1.26*k), mat);
+        
+        group.add (body);
+        body.position.y = 3.48*k/2;
+        //group.add (new THREE.AxesHelper (2*k));
+            return group;
+
+        gyro = new THREE.Gyroscope();
+        scene.add (gyro);
+        gyro.add (cameragyro);
+        model.add (gyro);
+
+        }
+
+        function keyframe(t) {
+            var s = ((t - ts) % T) / T;
+
+            for (var i = 1; i < keys.length; i++) {
+                if (keys[i][0] > s) break;
+            }
+            // take i-1
+            var ii = i - 1;
+            var a = (s - keys[ii][0]) / (keys[ii + 1][0] - keys[ii][0]);
+            intKey = [keys[ii][1].theta1 * (1 - a) + keys[ii + 1][1].theta1 * a,
+                        keys[ii][1].theta2 * (1 - a) + keys[ii + 1][1].theta2 * a,
+                            keys[ii][1].theta3 * (1 - a) + keys[ii + 1][1].theta3 * a,
+                                keys[ii][1].theta4 * (1 - a) + keys[ii + 1][1].theta4 * a,
+            ];
+        }
+
+        //resize function
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+
+        //	head.rotation.y = Math.PI/6;
+        keyframe(clock.getElapsedTime()); 
+        leftarm.rotation.y  = intKey[0]// Math.PI/4;
+        rightarm.rotation.y = intKey[1]// Math.PI/4;
+        leftleg.rotation.y  = intKey[2]//-Math.PI/4;
+        rightleg.rotation.y = intKey[3]//-Math.PI/4;
+        
+        theta += 0.005 ; //theta: radian 
+        mine.rotation.y = Math.PI + theta;
+
+        //move the character
+        mine.position.set(150*Math.cos(theta),0,-150*Math.sin(theta));
+
+        //set music
+        let MusicVolume = document.getElementById ('soundtrack');
+        MusicVolume.volume = document.getElementById ('MusicVolume').value / 10; 
+
+        camera.lookAt(mine.position);
+        
+        if (useGyro)
+            renderer.render (scene, camera);
+        else
+            renderer.render (scene, cameragyro);
+    
+        requestAnimationFrame(animate);
+        
+        }
+
+        $("#toggle").click(function () {
+            if (useGyro) {
+                $("#toggle").text("Gyro");
+                //orbitcontrols
+            }else {
+                $("#toggle").text("LookAt");
+                //把orbitcontrols關掉變更為gyro
+            }
+            useGyro = !useGyro;
+            });
+            /**/
+        </script>
+        
+    </body>
+</html>
