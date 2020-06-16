@@ -3,18 +3,20 @@
 <html>
 
 <head>
-<link rel="stylesheet" type="text/css" href="./mystyle.css">
+<meta charset="UTF-8" />
+<link rel="stylesheet" type="text/css" href="./mystyle2.css">
 <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 <!-- three.js library -->
 <script src='ar.js/three.js/examples/vendor/three.js/build/three.min.js'></script>
 <script src="ar.js/three.js/examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<script src="https://rawgit.com/jyunming-chen/tutsplus/master/js/text2D.js"></script>
 <!-- ar.js -->
 <script src="ar.js/three.js/build/ar.js"></script>
 
 </head>
 
 <body> 
-<div id="info">Agent (Seek, Arrival, Collision)<br>
+<div id="info">1.將大同的Marker放在平面上<br>2.將手機鏡頭對準Marker
 <p id="message"></p>
 </div>
 
@@ -22,12 +24,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.6/dat.gui.min.js"></script>
 
 <script >
-    var arToolkitSource, arToolkitContext;
+    var arToolkitSource, arToolkitContext,smoothedControls, smoothedRoot;
     var markerRoot, cubeSpin;
-    var agentblue;
-    var agentred;
     var car;
     var theta = 0;
+	var mesh;
+	var sprite;
+	var stats;
 
     init();
     animate();
@@ -120,56 +123,104 @@
         scene.add(markerRoot)
         var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
             type : 'pattern',
-            patternUrl : 'ar.js//data/data/patt.hiro'
+            patternUrl : 'ar.js//data/data/pattern-tatung.patt'
         })
 
+		// build a smoothedControls
+		smoothedRoot = new THREE.Group()
+		scene.add(smoothedRoot)
+		
+		smoothedControls = new THREEx.ArSmoothedControls(smoothedRoot, {
+			lerpPosition: 0.4,
+			lerpQuaternion: 0.3,
+			lerpScale: 1,
+		})
+        //////////////////////////////////////////////////////////////////////////////////
+		//		add an object in the scene
+		//////////////////////////////////////////////////////////////////////////////////
+		let arWorldRoot = smoothedRoot
 
-        // add a cubeGeometry
-        
-        //let size = 0.01; // halfsize of agent
-        //agent = new Agent(new THREE.Vector3(-400 + 400 * Math.random(), 0, -400 + 400 * Math.random()), mesh);
-        //agentblue = new Agent(new THREE.Vector3(-1 + 2 * Math.random(), 0, -1 + 2 * Math.random()), size, "BLUE", 0x003d73);
-        //agentred = new Agent(new THREE.Vector3(1 + -2 * Math.random(), 0, 1 + -2 * Math.random()), size, "RED", 0x8b281f);
 
-        /// add gridhelper
+        // add gridhelper
+        //let gridXZ = new THREE.GridHelper(5, 40, 0xffc914, 0xd7d9ce);
+        //arWorldRoot.add (gridXZ);
 
-        let gridXZ = new THREE.GridHelper(2, 40, 0xffc914, 0xd7d9ce);
-        markerRoot.add (gridXZ);
+		//再見大同背景
+		var geometry	= new THREE.PlaneGeometry(3,1);
+		var loader = new THREE.TextureLoader();
+		loader.setCrossOrigin('')
+		var texture = loader.load("https://i.imgur.com/57lXOvE.jpg")
+		var plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+			map: texture,
+			transparent: true,
+			opacity: 1,
+			visible: true
+		}));
+		arWorldRoot.add(plane);
+		plane.position.y = geometry.parameters.height/2;
+		plane.position.z = -1.2;
+    	//plane.rotation.x = -Math.PI / 2;
 
-        let geometry = new THREE.Geometry();
-        let material = new THREE.MeshBasicMaterial({color:0x003d73, wireframe:true});
-        geometry.vertices.push(
-            new THREE.Vector3(0.15,0,0),
-            new THREE.Vector3(0,0.05,0),
-            new THREE.Vector3(0,0,-0.05),
-            new THREE.Vector3(0,0,0.05)
-        );
-        geometry.faces.push(
-            new THREE.Face3(0,1,3),
-            new THREE.Face3(2,1,0),
-            new THREE.Face3(1,2,3),
-            new THREE.Face3(2,0,3),
-        );
-        geometry.computeFaceNormals();
 
-        car = new THREE.Mesh(geometry, material);
-        car.position.set(0,0,0); 
-        markerRoot.add(car);
+		//地板圖片
+		geometry	= new THREE.PlaneGeometry(2.5,2.5);
+		loader = new THREE.TextureLoader();
+		loader.setCrossOrigin('')
+		texture = loader.load("https://i.imgur.com/GfIEGuB.gif")
+		plane2 = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+			map: texture,
+			transparent: true,
+			opacity: 1,
+			visible: true
+		}));
+		arWorldRoot.add(plane2);
+		plane2.position.y = 0;
+		//plane.position.z = -0.8;
+    	plane2.rotation.x = -Math.PI / 2;
+		
 
-        geometry = new THREE.CylinderGeometry(0.15,0.15,0.05,20);
-        material = new THREE.MeshBasicMaterial({color: 0x669bbc,transparent:true, opacity:0.9});
+		//大同寶寶
+		geometry	= new THREE.PlaneGeometry(1,1);
+		loader = new THREE.TextureLoader();
+		loader.setCrossOrigin('')
+		texture = loader.load( 'https://i.imgur.com/55xYN9r.png' );
+		
+		let material = new THREE.MeshBasicMaterial( { 
+			map: texture,
+			transparent: true,
+			side: THREE.DoubleSide
+			} );
 
-        var obs1 = new THREE.Mesh(geometry, material);
-        var obs2 = new THREE.Mesh(geometry, material);
-        var obs3 = new THREE.Mesh(geometry, material);
+		mesh	= new THREE.Mesh( geometry, material );
+		mesh.position.y	= geometry.parameters.height/2
+		mesh.position.z	= 0.5
+		arWorldRoot.add(mesh);
 
-        obs1.position.set(0,0,0);
-        obs2.position.set(1,0,0);
-        obs3.position.set(0,0,-1);
+		stats = new Stats();
+		document.body.appendChild( stats.dom );
 
-        markerRoot.add(obs1);
-        markerRoot.add(obs2);
-        markerRoot.add(obs3);
+
+		//文字
+		var SpriteText2D = THREE_Text.SpriteText2D;
+		var textAlign = THREE_Text.textAlign;
+
+		sprite = new SpriteText2D("TEST", {
+			align: textAlign.center,
+			font: '20px Courier',
+			fillStyle: '#0080FF',
+			antialias: true
+		});
+		//  sprite.position.set(0, 0, 0);
+		sprite.scale.set(.015, .015, .015);
+		scene.add(sprite);
+
+
+		var light = new THREE.PointLight(0xffffff);
+		light.position.y = plane.position.y +1;
+		light.position.x = plane.position.x;
+		light.position.z = plane.position.z;
+		scene.add(light);
+
         //////////////////////////////////////////////////////////////////////////////////
         //		render the whole thing on the page
         //////////////////////////////////////////////////////////////////////////////////
@@ -182,19 +233,27 @@
     function animate() {
         
         requestAnimationFrame (animate)
+		renderer.render (scene, camera);
+        stats.update();
         if( arToolkitSource.ready === false )	return
 
-        theta += 0.03 ; //theta: radian 
-        car.rotation.y = Math.PI/2 + theta;
+        /*theta += 0.03 ; //theta: radian 
+        mesh.rotation.y = Math.PI/2 + theta;
 
         //move the car
-        car.position.set(0.6*Math.cos(theta),0,-0.6*Math.sin(theta));
+        mesh.position.set(0.6*Math.cos(theta),0,-0.6*Math.sin(theta));*/
 
         arToolkitContext.update( arToolkitSource.domElement )
 
-        renderer.render (scene, camera);
-        stats.update();
+        smoothedControls.update (markerRoot)
+		//smoothedRoot.children[1].rotation.x += 0.1;
         
+		// using SpriteText
+		sprite.position.copy (smoothedRoot.position)
+		//console.log (sprite.position.x + ',' + sprite.position.y + ',' + sprite.position.z)	
+		sprite.position.y += 1.2;
+		sprite.material.visible = markerRoot.visible;
+		sprite.text = '還有一年才畢業拉~~'
     }
 
 </script>
