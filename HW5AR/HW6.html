@@ -7,11 +7,11 @@
 <link rel="stylesheet" type="text/css" href="./mystyle2.css">
 <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 <!-- three.js library -->
-<script src="./ar.js/three.js/examples/vendor/three.js/build/three.min.js"></script>
-<script src="./ar.js/three.js/examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<script src="./source/three.min.js"></script>
+<script src="./source/stats.min.js"></script>
 <script src="https://rawgit.com/jyunming-chen/tutsplus/master/js/text2D.js"></script>
 <!-- ar.js -->
-<script src="./ar.js/three.js/build/ar.js"></script>
+<script src="./source/ar.js"></script>
 
 </head>
 
@@ -102,7 +102,7 @@
 
         // create atToolkitContext
         arToolkitContext = new THREEx.ArToolkitContext({
-            cameraParametersUrl: './ar.js/data/data/camera_para.dat',
+            cameraParametersUrl: './source/marker/camera_para.dat',
             detectionMode: 'mono',
             maxDetectionRate: 30,
             canvasWidth: 80*3,
@@ -123,7 +123,7 @@
         scene.add(markerRoot)
         var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
             type : 'pattern',
-            patternUrl : './ar.js//data/data/pattern-tatung.patt'
+            patternUrl : './source/marker/pattern-tatung.patt'
         })
 
 		// build a smoothedControls
