@@ -6,10 +6,11 @@
 <link rel="stylesheet" type="text/css" href="./mystyle.css">
 <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 <!-- three.js library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
-<script src="http://threejs.org/examples/js/libs/stats.min.js"></script>
+<script src="./source/three.min.js"></script>
+<script src="./source/stats.min.js"></script>
 <!-- ar.js -->
-<script src="./ar2.js"></script>
+<script src="./source/ar.js"></script>
+<script>THREEx.ArToolkitContext.baseURL = '../'</script>
 
 </head>
 
@@ -100,7 +101,7 @@
 
         // create atToolkitContext
         arToolkitContext = new THREEx.ArToolkitContext({
-            cameraParametersUrl: './ar.js/data/data/camera_para.dat',
+            cameraParametersUrl: './source/camera_para.dat',
             detectionMode: 'mono',
             maxDetectionRate: 30,
             canvasWidth: 80*3,
@@ -121,7 +122,7 @@
         scene.add(markerRoot)
         var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
             type : 'pattern',
-            patternUrl : './ar.js//data/data/patt.hiro'
+            patternUrl : './source/marker/patt.hiro'
         })
 
 
